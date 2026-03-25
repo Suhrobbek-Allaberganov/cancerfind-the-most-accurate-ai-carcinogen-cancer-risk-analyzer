@@ -1,0 +1,149 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Lora:ital,wght@0,400..700;1,400..700&family=IBM+Plex+Mono:ital,wght@0,100..700;1,100..700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* CancerFind Medical Color Palette */
+    --background: 210 100% 97.5%;
+    --foreground: 212 32% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 212 32% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 212 32% 18%;
+    
+    /* Primary: Medical Green (trust, health, care) */
+    --primary: 160 65% 48%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary: Light Green (accessible, calm) */
+    --secondary: 160 70% 88%;
+    --secondary-foreground: 160 65% 28%;
+    
+    /* Danger: Medical Red (carcinogen warnings) */
+    --destructive: 0 82% 54%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Muted: Neutral gray (context, secondary info) */
+    --muted: 210 25% 90%;
+    --muted-foreground: 212 15% 48%;
+    
+    /* Accent: Warning Orange (important findings) */
+    --accent: 34 97% 52%;
+    --accent-foreground: 212 32% 18%;
+    
+    --border: 210 20% 88%;
+    --input: 210 20% 90%;
+    --ring: 160 65% 48%;
+
+    /* Charts */
+    --chart-1: 160 65% 48%;
+    --chart-2: 34 97% 52%;
+    --chart-3: 0 82% 54%;
+    --chart-4: 212 32% 18%;
+    --chart-5: 160 70% 88%;
+
+    /* Sidebar */
+    --sidebar: 210 40% 96%;
+    --sidebar-foreground: 212 32% 18%;
+    --sidebar-primary: 160 65% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 34 97% 52%;
+    --sidebar-accent-foreground: 212 32% 18%;
+    --sidebar-border: 210 20% 88%;
+    --sidebar-ring: 160 65% 48%;
+
+    /* Fonts */
+    --font-sans: DM Sans, sans-serif;
+    --font-serif: Lora, serif;
+    --font-mono: IBM Plex Mono, monospace;
+
+    /* Shadows */
+    --shadow-2xs: 0px 4px 8px -1px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0px 4px 8px -1px hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 1px 2px -2px hsl(0 0% 0% / 0.10);
+    --shadow: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 1px 2px -2px hsl(0 0% 0% / 0.10);
+    --shadow-md: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 2px 4px -2px hsl(0 0% 0% / 0.10);
+    --shadow-lg: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 4px 6px -2px hsl(0 0% 0% / 0.10);
+    --shadow-xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 8px 10px -2px hsl(0 0% 0% / 0.10);
+    --shadow-2xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.25);
+
+    /* Misc */
+    --tracking-normal: 0em;
+    --spacing: 0.25rem;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 212 35% 12%;
+    --foreground: 210 20% 88%;
+    --card: 212 32% 18%;
+    --card-foreground: 210 20% 88%;
+    --popover: 212 32% 18%;
+    --popover-foreground: 210 20% 88%;
+    
+    /* Dark mode: Brighter green for contrast */
+    --primary: 160 70% 52%;
+    --primary-foreground: 212 35% 12%;
+    
+    --secondary: 212 32% 28%;
+    --secondary-foreground: 160 70% 52%;
+    
+    /* Danger stays bright red for warnings */
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 212 35% 12%;
+    
+    --muted: 212 32% 28%;
+    --muted-foreground: 210 15% 60%;
+    
+    --accent: 34 97% 58%;
+    --accent-foreground: 212 35% 12%;
+    
+    --border: 212 32% 28%;
+    --input: 212 32% 28%;
+    --ring: 160 70% 52%;
+
+    --chart-1: 160 70% 52%;
+    --chart-2: 34 97% 58%;
+    --chart-3: 0 85% 60%;
+    --chart-4: 210 20% 88%;
+    --chart-5: 160 70% 88%;
+
+    --sidebar: 212 32% 20%;
+    --sidebar-foreground: 210 20% 88%;
+    --sidebar-primary: 160 70% 52%;
+    --sidebar-primary-foreground: 212 35% 12%;
+    --sidebar-accent: 34 97% 58%;
+    --sidebar-accent-foreground: 212 35% 12%;
+    --sidebar-border: 212 32% 28%;
+    --sidebar-ring: 160 70% 52%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    letter-spacing: var(--tracking-normal);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
