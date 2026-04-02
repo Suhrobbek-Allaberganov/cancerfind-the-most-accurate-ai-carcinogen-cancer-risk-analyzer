@@ -1,400 +1,274 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Upload, Loader } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { ArrowLeft, Camera, Barcode, Type, Loader2, AlertCircle, ShieldCheck, ScanBarcode, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
+import { analyzeProduct, ScientificRiskReport } from '@/services/analyzer'
 import ResultsDisplay from '@/components/ResultsDisplay'
+import RegionalHazardMap from '@/components/RegionalHazardMap'
 import LanguageSelector from '@/components/LanguageSelector'
-import { t, type Language } from '@/lib/language'
+import { Capacitor } from '@capacitor/core'
+import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning'
+import { Geolocation } from '@capacitor/geolocation'
 
 interface AnalyzerPageProps {
   onHome: () => void
-  onResult: (result: any) => void
-  blink: any
-  language: Language
-  onLanguageChange: (lang: Language) => void
-  onInputChange: (text: string) => void
 }
 
-export default function AnalyzerPage({ 
-  onHome, 
-  onResult, 
-  blink,
-  language,
-  onLanguageChange,
-  onInputChange
-}: AnalyzerPageProps) {
+export default function AnalyzerPage({ onHome }: AnalyzerPageProps) {
+  const { t, i18n } = useTranslation();
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [results, setResults] = useState(null)
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
+  const [report, setReport] = useState<ScientificRiskReport | null>(null)
+  const [imageData, setImageData] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'text' | 'photo' | 'barcode' | 'map'>('text')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const analyzeCarcinogens = async (analysisInput: string) => {
-    if (!analysisInput.trim()) {
-      toast.error(t('analyzer.error.empty', language))
-      return
+  const handleAnalysis = async (type: 'text' | 'barcode' | 'image', value: string = input) => {
+    const textToAnalyze = type === 'image' ? "Image analysis requested" : value;
+    
+    if (!textToAnalyze.trim()) {
+      toast.error(t('analyzer.error.empty'));
+      return;
     }
 
-    // Update detected language from input
-    onInputChange(analysisInput)
-
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      // 1. Try to find in database first (robust search)
-      const dbProducts = await blink.db.products.list({
-        where: {
-          OR: [
-            { name: { contains: analysisInput } },
-            { brand: { contains: analysisInput } },
-            { ingredientsText: { contains: analysisInput } }
-          ]
-        },
-        limit: 1
-      })
-
-      if (dbProducts && dbProducts.length > 0) {
-        const product = dbProducts[0]
-        const associations = await blink.db.productCarcinogens.list({
-          where: { productId: product.id }
-        })
-
-        const carcinogenIds = associations.map((a: any) => a.carcinogenId)
-        
-        if (carcinogenIds.length > 0) {
-          const foundCarcinogens = await blink.db.carcinogens.list({
-            where: { id: { in: carcinogenIds } }
-          })
-
-          const formattedResult = {
-            inputType: 'product',
-            carcinogensFound: foundCarcinogens.map((c: any) => ({
-              name: c.name,
-              iarcGroup: `Group ${c.iarcGroup}`,
-              evaluationYear: c.yearEvaluated,
-              primaryCancerSites: JSON.parse(c.cancerSites || '[]'),
-              exposureRoutes: JSON.parse(c.exposureRoutes || '[]'),
-              evidenceStrength: c.evidenceStrength,
-              source: `${c.monographNumber} (${c.yearEvaluated})`,
-              safeLimit: c.safeLimit,
-              notes: c.notes
-            })),
-            overallAssessment: language === 'uz' 
-              ? `Ma'lumotlar bazasidan topildi: ${product.name} (${product.brand}). ${foundCarcinogens.length} ta IARC klassifikatsiyasidagi kanserogen mavjud.`
-              : language === 'ru'
-              ? `Найдено в базе данных: ${product.name} (${product.brand}). Содержит ${foundCarcinogens.length} канцерогенов, классифицированных МАИР.`
-              : `Found in database: ${product.name} (${product.brand}). Contains ${foundCarcinogens.length} IARC-classified carcinogens.`,
-            recommendations: [
-              language === 'uz' ? `Yorliqlarni ${foundCarcinogens.map((c: any) => c.name).join(', ')} uchun tekshiring.` :
-              language === 'ru' ? `Проверьте этикетки на наличие ${foundCarcinogens.map((c: any) => c.name).join(', ')}.` :
-              `Check labels for ${foundCarcinogens.map((c: any) => c.name).join(', ')}.`
-            ]
-          }
-
-          setResults(formattedResult)
-          onResult(formattedResult)
-          toast.success(t('analyzer.success', language))
-          setIsLoading(false)
-          return
-        }
+      const result = await analyzeProduct(textToAnalyze, type, i18n.language, imageData || undefined);
+      setReport(result);
+      toast.success(t('analyzer.success'));
+    } catch (error: any) {
+      console.error(error);
+      if (error.message === "GOOGLE_AI_API_KEY_MISSING") {
+        toast.error("Google AI API Key is missing. Please add VITE_GOOGLE_AI_API_KEY to secrets.");
+      } else {
+        toast.error(t('analyzer.error'));
       }
-
-      // 2. If not found in DB, proceed with AI analysis
-      // Language-specific prompts
-      const prompts: Record<Language, string> = {
-        en: `You are CancerFind, the world's most comprehensive AI carcinogen analyst based on IARC/WHO/EPA/EFSA/NTP datasets (2026 update).
-
-Analyze this input: "${analysisInput}"
-
-STRICT COMPLIANCE RULES:
-1. UNRESTRICTED ACCESS: Use the full list of 1,123+ agents from IARC Monographs Volumes 1-140.
-2. ENTIRE RESPONSE MUST BE IN ENGLISH.
-3. DATA SOURCES: IARC Monographs (1-140), WHO air/water/soil standards, IQAir/OpenAQ/NASA Earthdata (if location is provided), Forever Pollution Project (PFAS), NTP, EPA, EFSA.
-4. If a location is mentioned, provide analysis of known regional pollutants/averages (2026 data).
-5. NO PERSONAL PROGNOSIS: Never say "you will get cancer". Only report epidemiological associations.
-6. MANDATORY CITATION: Every finding must include exact source (e.g., IARC Group 1, Monograph 140, 2026).
-7. INSUFFICIENT EVIDENCE: If data is lacking, state exactly: "Insufficient evidence".
-8. TRANSLATE CANCER TYPES: Mandatory English terms only (Lung cancer, Leukemia, etc.).
-
-For each carcinogen identified:
-• Name and IARC Group (1/2A/2B/3) with evaluated year.
-• Primary cancer sites (associated organs from large cohort studies).
-• Exposure routes (ingestion, inhalation, dermal, lifestyle, radiation, etc.).
-• Evidence strength (Definite/Strong/Limited/Insufficient).
-• Scientific source (Monograph number, WHO guideline, or project reference).
-• Safe exposure limits (WHO ADI/TDI or regional standards).
-
-RESPONSE MUST BE: factual, clinical, and transparent. If no known carcinogens found, state: "No IARC-classified carcinogens identified."`,
-
-        ru: `Вы CancerFind - самый комплексный анализатор канцерогенов в мире на основе данных МАИР/ВОЗ/EPA/EFSA/NTP (обновление 2026).
-
-Анализируйте этот ввод: "${analysisInput}"
-
-СТРОГИЕ ПРАВИЛА:
-1. БЕЗЛИМИТНЫЙ ДОСТУП: Используйте полный список из 1,123+ агентов МАИР (IARC Monographs Volumes 1-140).
-2. ВЕСЬ ОТВЕТ ДОЛЖЕН БЫТЬ ТОЛЬКО НА РУССКОМ ЯЗЫКЕ.
-3. ИСТОЧНИКИ: МАИР (1-140), стандарты ВОЗ (воздух/вода/почва), IQAir/OpenAQ/NASA Earthdata (если указана локация), Forever Pollution Project (PFAS), NTP, EPA, EFSA.
-4. Если указан город/регион, дайте анализ известных загрязнений (данные 2026).
-5. НЕТ ПЕРСОНАЛЬНЫМ ПРОГНОЗАМ: Никогда не говорите "у вас будет рак". Только эпидемиологические связи.
-6. ОБЯЗАТЕЛЬНОЕ ЦИТИРОВАНИЕ: Каждый вывод должен включать точный источник (например: МАИР Группа 1, Монография 140, 2026).
-7. НЕДОСТАТОЧНО ДОКАЗАТЕЛЬСТВ: Если данных мало, пишите: "Доказательства недостаточны".
-8. ПЕРЕВОД ТЕРМИНОВ: Обязательно используйте русские термины (Рак лёгких, Лейкемия и т.д.).
-
-Для каждого найденного канцерогена:
-• Название и Группа МАИР (1/2A/2B/3) с годом оценки.
-• Основные типы рака (связанные органы по данным исследований).
-• Пути воздействия (проглатывание, вдыхание, кожа, образ жизни, радиация и т.д.).
-• Сила доказательств (Определенная/Сильная/Ограниченная/Недостаточная).
-• Научный источник (Номер монографии, стандарт ВОЗ или ссылка на проект).
-• Безопасные пределы (ВОЗ ADI/TDI или региональные нормы).
-
-ОТВЕТ ДОЛЖЕН БЫТЬ: фактологическим, клиническим и прозрачным. Если канцерогены не найдены: "Канцерогены, классифицированные МАИР, не обнаружены."`,
-
-        uz: `Siz CancerFind - IARC/WHO/EPA/EFSA/NTP ma'lumotlar bazalariga asoslangan dunyodagi eng keng qamrovli kanserogen tahlilchisiz (2026 yangilanishi).
-
-Ushbu kiritishni tahlil qiling: "${analysisInput}"
-
-QAT'IY QOIDALAR:
-1. CHEKLOVSIZ KIRISH: IARC Monographs 1-140 jildlaridagi barcha 1,123+ agentdan foydalaning.
-2. JAVOB BUTUNLAY O'ZBEK TILIDA bo'lishi shart.
-3. MANBALAR: IARC Monographs (1-140), WHO havo/suv/tuproq standartlari, IQAir/OpenAQ/NASA Earthdata (agar joylashuv berilgan bo'lsa), Forever Pollution Project (PFAS), NTP, EPA, EFSA.
-4. Agar shahar/tuman ko'rsatilgan bo'lsa, ma'lum mintaqaviy ifloslantiruvchilar tahlilini bering (2026 ma'lumotlari).
-5. SHAXSIY PROGNOZ TAQIQLANADI: "Sizda saraton bo'ladi" deb aytmang. Faqat epidemiologik bog'liqliklarni bildiring.
-6. MAJBURIY MANBA: Har bir topilma uchun aniq manba ko'rsatilsa (masalan: IARC Group 1, Monograph 140, 2026).
-7. DALILLAR YETARLI EMAS: Agar ma'lumot yetarli bo'lmasa, aynan shunday yozing: "Dalillar yetarli emas".
-8. TERMINLARNI TARJIMA QILING: Majburiy o'zbekcha atamalar (O'pka saratoni, Leykemiya va h.k.).
-
-Aniqlangan har bir kanserogen uchun:
-• Nomi va IARC guruhi (1/2A/2B/3) baholangan yili bilan.
-• Asosiy saraton turlari (tadqiqotlarda aniqlangan organlar).
-• Maruzlik yo'llari (yutish, inhalatsiya, teri, turmush tarzi, radiatsiya va h.k.).
-• Dalillar kuchi (Aniq/Kuchli/Cheklangan/Yetarli emas).
-• Ilmiy manba (Monografiya raqami, WHO yo'riqnamasi yoki loyiha havolasi).
-• Xavfsiz maruzlik chegaralari (WHO ADI/TDI yoki mintaqaviy standartlar).
-
-JAVOB: haqiqatga asoslangan, klinik va shaffof bo'lishi kerak. Agar kanserogen topilmasa: "IARC tomonidan klassifikatsiyalangan kanserogenlar aniqlanmadi."`
-      }
-
-      // Call Blink AI to analyze carcinogens
-      const { object } = await blink.ai.generateObject({
-        prompt: prompts[language],
-        schema: {
-          type: 'object',
-          properties: {
-            inputType: {
-              type: 'string',
-              enum: ['product', 'ingredient', 'chemical', 'mixture', 'unknown', 'location']
-            },
-            carcinogensFound: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  name: { type: 'string' },
-                  iarcGroup: { type: 'string' },
-                  evaluationYear: { type: 'number' },
-                  primaryCancerSites: { type: 'array', items: { type: 'string' } },
-                  exposureRoutes: { type: 'array', items: { type: 'string' } },
-                  evidenceStrength: { type: 'string' },
-                  source: { type: 'string' },
-                  safeLimit: { type: 'string' },
-                  notes: { type: 'string' }
-                }
-              }
-            },
-            overallAssessment: { type: 'string' },
-            recommendations: { type: 'array', items: { type: 'string' } }
-          },
-          required: ['carcinogensFound', 'overallAssessment']
-        }
-      })
-
-      setResults(object)
-      onResult(object)
-      
-      // 3. Organically grow DB: Save new products identified by AI
-      if (object.inputType === 'product' || object.inputType === 'mixture' || object.inputType === 'chemical') {
-        try {
-          const newProd = await blink.db.products.create({
-            name: analysisInput,
-            brand: 'Identified via AI 2026',
-            ingredientsText: analysisInput,
-            categories: '[]'
-          });
-          
-          if (object.carcinogensFound && object.carcinogensFound.length > 0) {
-            for (const carcinogen of object.carcinogensFound) {
-              const dbCarc = await blink.db.carcinogens.list({ where: { name: carcinogen.name } });
-              if (dbCarc.length > 0) {
-                await blink.db.productCarcinogens.create({
-                  productId: newProd.id,
-                  carcinogenId: dbCarc[0].id
-                });
-              }
-            }
-          }
-        } catch (e) {
-          console.warn("Failed to save AI-identified product to DB", e);
-        }
-      }
-
-      toast.success(t('analyzer.success', language))
-    } catch (error) {
-      console.error('Analysis error:', error)
-      toast.error(t('analyzer.error', language))
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const handleImageUpload = async (file: File) => {
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setImageData(base64String);
+        handleAnalysis('image', "Image analysis requested");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const startBarcodeScan = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      toast.info("Barcode scanning simulation (Browser Mode)");
+      setTimeout(() => handleAnalysis('barcode', "4000517004247"), 1500);
+      return;
+    }
+
     try {
-      setIsLoading(true)
-      // Upload image to storage
-      const { publicUrl } = await blink.storage.upload(
-        file,
-        `analyzer/${Date.now()}.${file.name.split('.').pop()}`
-      )
-      setUploadedImageUrl(publicUrl)
-
-      // Language-specific image extraction prompts
-      const extractionPrompts: Record<Language, string> = {
-        en: 'Extract all ingredients, product name, and any warning labels from this image',
-        ru: 'Извлеките все ингредиенты, название продукта и любые предупреждающие надписи из этого изображения',
-        uz: 'Ushbu rasmdan barcha ingredientlarni, mahsulot nomini va barcha ogohlantirish etiqetlarini chiqarib oling'
+      const granted = await BarcodeScanner.requestPermissions();
+      if (granted.camera !== 'granted') {
+        toast.error('Camera permission denied');
+        return;
       }
 
-      // Analyze image with vision
-      const { text } = await blink.ai.generateText({
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'text', text: extractionPrompts[language] },
-            { type: 'image', image: publicUrl }
-          ]
-        }]
-      })
+      const { barcodes } = await BarcodeScanner.scan({
+        formats: [BarcodeFormat.Ean13, BarcodeFormat.Ean8, BarcodeFormat.UpcA, BarcodeFormat.Upce],
+      });
 
-      setInput(text)
-      toast.success(t('analyzer.image.success', language))
+      if (barcodes.length > 0) {
+        const code = barcodes[0].rawValue;
+        handleAnalysis('barcode', code);
+      }
     } catch (error) {
-      console.error('Upload error:', error)
-      toast.error(t('analyzer.image.error.fallback', language))
-    } finally {
-      setIsLoading(false)
+      console.error('Scan error:', error);
+      toast.error('Failed to start scanner');
     }
-  }
+  };
+
+  const handleGeolocationAnalysis = async () => {
+    setIsLoading(true);
+    try {
+      const position = await Geolocation.getCurrentPosition();
+      const locationStr = `Location: ${position.coords.latitude}, ${position.coords.longitude}`;
+      handleAnalysis('text', locationStr);
+    } catch (error) {
+      console.error('Geolocation error:', error);
+      toast.error('Failed to get location');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-card shadow-sm">
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={onHome}
-          className="flex items-center gap-2 text-primary hover:bg-primary/10"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          {t('nav.back', language)}
-        </Button>
-        <LanguageSelector language={language} onLanguageChange={onLanguageChange} />
-      </div>
+    <div className="min-h-screen bg-slate-50/50">
+      <header className="h-16 border-b bg-white/80 backdrop-blur-md sticky top-0 z-50 flex items-center justify-between px-6 shadow-sm">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={onHome} className="hover:bg-primary/10 text-primary">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-6 h-6 text-primary" />
+            <h1 className="font-bold text-xl tracking-tight text-slate-900">CancerFind <span className="text-primary text-xs font-medium uppercase px-2 py-0.5 bg-primary/10 rounded-full border border-primary/20 ml-2">Clinical v2.0</span></h1>
+          </div>
+        </div>
+        <LanguageSelector language={i18n.language as any} onLanguageChange={(l) => i18n.changeLanguage(l)} />
+      </header>
 
-      <div className="max-w-4xl mx-auto p-6">
-        {!results ? (
-          <div className="space-y-6">
-            <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 animate-fade-in">
-              <p className="text-primary font-medium text-center">
-                {t('greeting.welcome', language)}
-              </p>
-            </div>
-            <div>
-              <h2 className="text-3xl font-bold text-foreground mb-2">
-                {t('analyzer.title', language)}
-              </h2>
-              <p className="text-muted-foreground">
-                {t('analyzer.subtitle', language)}
-              </p>
-            </div>
-
-            {/* Input Section */}
-            <Card className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  {t('analyzer.label', language)}
-                </label>
-                <Input
-                  placeholder={t('analyzer.placeholder', language)}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !isLoading) {
-                      analyzeCarcinogens(input)
-                    }
-                  }}
-                  disabled={isLoading}
-                  className="text-base"
-                />
+      <main className="max-w-5xl mx-auto p-6 space-y-8 pb-24">
+        {!report ? (
+          <div className="grid md:grid-cols-[1fr_350px] gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h2 className="text-3xl font-extrabold text-slate-900">{t('analyzer.title')}</h2>
+                <p className="text-slate-500 text-lg">{t('analyzer.subtitle')}</p>
               </div>
 
-              {/* Upload Image */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  {t('analyzer.image.label', language)}
-                </label>
-                <label className="flex items-center gap-3 p-4 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/30 transition">
-                  <Upload className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {uploadedImageUrl ? t('analyzer.image.uploaded', language) : t('analyzer.image.placeholder', language)}
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
-                    disabled={isLoading}
-                    className="hidden"
-                  />
-                </label>
-              </div>
+              <Card className="border-2 border-slate-200 shadow-xl overflow-hidden bg-white">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+                  <TabsList className="w-full grid grid-cols-4 h-14 bg-slate-100/50 p-1 rounded-none border-b">
+                    <TabsTrigger value="text" className="gap-2 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      <Type className="w-4 h-4" /> {t('analyzer.hybrid.text')}
+                    </TabsTrigger>
+                    <TabsTrigger value="photo" className="gap-2 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      <Camera className="w-4 h-4" /> Photo
+                    </TabsTrigger>
+                    <TabsTrigger value="barcode" className="gap-2 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      <Barcode className="w-4 h-4" /> Scan
+                    </TabsTrigger>
+                    <TabsTrigger value="map" className="gap-2 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      <MapPin className="w-4 h-4" /> Map
+                    </TabsTrigger>
+                  </TabsList>
 
-              {/* Buttons */}
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => analyzeCarcinogens(input)}
-                  disabled={isLoading}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-                >
-                  {isLoading ? (
-                    <Loader className="w-4 h-4 animate-spin mr-2" />
-                  ) : null}
-                  {t('analyzer.button', language)}
-                </Button>
-              </div>
-            </Card>
+                  <div className="p-8">
+                    <TabsContent value="text" className="mt-0 space-y-6">
+                      <div className="space-y-4">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Ingredient List or Product Name</label>
+                        <Input
+                          placeholder={t('analyzer.placeholder')}
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          className="h-14 text-lg border-2 border-slate-200 focus:border-primary/50 focus:ring-primary/20 transition-all bg-slate-50/30"
+                          onKeyDown={(e) => e.key === 'Enter' && handleAnalysis('text')}
+                        />
+                      </div>
+                      <Button 
+                        onClick={() => handleAnalysis('text')} 
+                        disabled={isLoading}
+                        className="w-full h-14 text-lg font-bold shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 rounded-xl"
+                      >
+                        {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : null}
+                        {t('analyzer.button')}
+                      </Button>
+                    </TabsContent>
 
-            {uploadedImageUrl && (
-              <Card className="p-4">
-                <img 
-                  src={uploadedImageUrl} 
-                  alt="Uploaded" 
-                  className="w-full h-auto rounded-lg max-h-64 object-cover"
-                />
+                    <TabsContent value="photo" className="mt-0 text-center space-y-6 py-8">
+                      <div className="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center mx-auto border-2 border-dashed border-primary/30">
+                        <Camera className="w-10 h-10 text-primary" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="font-bold text-xl text-slate-900">AI Vision Analysis</h3>
+                        <p className="text-slate-500 max-w-xs mx-auto">Upload a clear photo of the ingredients label.</p>
+                      </div>
+                      <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={onFileChange} />
+                      <Button 
+                        variant="outline" 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isLoading}
+                        className="w-full h-14 border-2 border-primary/30 text-primary rounded-xl"
+                      >
+                        {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <Camera className="w-5 h-5 mr-2" />}
+                        Choose Photo
+                      </Button>
+                    </TabsContent>
+
+                    <TabsContent value="barcode" className="mt-0 text-center space-y-6 py-8">
+                      <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
+                        <ScanBarcode className="w-10 h-10 text-slate-400" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="font-bold text-xl text-slate-900">EAN/UPC Database</h3>
+                        <p className="text-slate-500 max-w-xs mx-auto">Scan product barcode to cross-reference.</p>
+                      </div>
+                      <Button 
+                        onClick={startBarcodeScan}
+                        disabled={isLoading}
+                        className="w-full h-14 font-bold rounded-xl"
+                      >
+                        {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <ScanBarcode className="w-5 h-5 mr-2" />}
+                        Start Scan
+                      </Button>
+                    </TabsContent>
+
+                    <TabsContent value="map" className="mt-0 text-center space-y-6 py-8">
+                      <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center mx-auto border-2 border-dashed border-emerald-200">
+                        <MapPin className="w-10 h-10 text-emerald-500" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="font-bold text-xl text-slate-900">Regional Hazard Detection</h3>
+                        <p className="text-slate-500 max-w-xs mx-auto">Analyze local water, air, and soil pollutants.</p>
+                      </div>
+                      <Button 
+                        onClick={handleGeolocationAnalysis}
+                        disabled={isLoading}
+                        className="w-full h-14 font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        {isLoading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <MapPin className="w-5 h-5 mr-2" />}
+                        Analyze Current Region
+                      </Button>
+                    </TabsContent>
+                  </div>
+                </Tabs>
               </Card>
-            )}
+
+              <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-800 text-sm leading-relaxed shadow-sm">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-blue-500" />
+                <p><strong>Note:</strong> All analyses are based on IARC Monographs Volumes 1–140 and WHO 2026 updates.</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <RegionalHazardMap />
+              <Card className="p-6 bg-slate-900 text-white border-none shadow-xl rounded-2xl">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-primary">
+                  <ShieldCheck className="w-5 h-5" />
+                  Clinical Status
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center text-xs border-b border-white/10 pb-2">
+                    <span className="text-white/60 uppercase">IARC Volumes</span>
+                    <span className="font-mono">1–140</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs border-b border-white/10 pb-2">
+                    <span className="text-white/60 uppercase">Scientific Dataset</span>
+                    <span className="font-mono">2026</span>
+                  </div>
+                </div>
+              </Card>
+            </div>
           </div>
         ) : (
-          <ResultsDisplay 
-            results={results}
-            onNewAnalysis={() => {
-              setResults(null)
-              setInput('')
-              setUploadedImageUrl(null)
-            }}
-            language={language}
-          />
+          <div className="animate-in zoom-in-95 duration-500">
+            <ResultsDisplay 
+              results={report} 
+              onNewAnalysis={() => {
+                setReport(null)
+                setImageData(null)
+                setInput('')
+              }} 
+              language={i18n.language as any} 
+            />
+          </div>
         )}
-      </div>
+      </main>
     </div>
-  )
+  );
 }

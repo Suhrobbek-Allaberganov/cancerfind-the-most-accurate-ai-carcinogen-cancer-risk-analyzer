@@ -1,199 +1,202 @@
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, AlertTriangle, Info, MapPin, Droplets, Wind, Mountain } from 'lucide-react'
 import { t, type Language, translations } from '@/lib/language'
-
-interface Carcinogen {
-  name: string
-  iarcGroup: string
-  evaluationYear: number
-  primaryCancerSites: string[]
-  exposureRoutes: string[]
-  evidenceStrength: string
-  source: string
-  safeLimit?: string
-  notes?: string
-}
+import { ScientificRiskReport } from '@/services/analyzer'
 
 interface ResultsDisplayProps {
-  results: {
-    inputType: string
-    carcinogensFound: Carcinogen[]
-    overallAssessment: string
-    recommendations?: string[]
-  }
-  onNewAnalysis: () => void
-  language?: Language
+  results: ScientificRiskReport;
+  onNewAnalysis: () => void;
+  language?: Language;
 }
 
-const getGroupColor = (group: string) => {
-  if (group === 'Group 1') return 'bg-destructive text-destructive-foreground'
-  if (group === 'Group 2A') return 'bg-accent text-accent-foreground'
-  if (group === 'Group 2B') return 'bg-accent/80 text-accent-foreground'
-  if (group === 'Group 3') return 'bg-muted text-muted-foreground'
-  return 'bg-muted text-muted-foreground'
+const getRiskColor = (risk: string) => {
+  if (risk === 'High Risk') return 'border-destructive/50 bg-destructive/5 text-destructive'
+  if (risk === 'Caution') return 'border-amber-500/50 bg-amber-50 text-amber-700'
+  return 'border-emerald-500/50 bg-emerald-50 text-emerald-700'
 }
 
-const getGroupLabel = (group: string, language: Language) => {
-  const labels: Record<Language, Record<string, string>> = {
-    en: {
-      'Group 1': 'CARCINOGENIC TO HUMANS',
-      'Group 2A': 'PROBABLY CARCINOGENIC',
-      'Group 2B': 'POSSIBLY CARCINOGENIC',
-      'Group 3': 'NOT CLASSIFIABLE',
-      'Group 4': 'PROBABLY NOT CARCINOGENIC',
-    },
-    ru: {
-      'Group 1': 'КАНЦЕРОГЕННО ДЛЯ ЧЕЛОВЕКА',
-      'Group 2A': 'ВЕРОЯТНО КАНЦЕРОГЕННО',
-      'Group 2B': 'ВОЗМОЖНО КАНЦЕРОГЕННО',
-      'Group 3': 'НЕ КЛАССИФИЦИРУЕТСЯ',
-      'Group 4': 'ВЕРОЯТНО НЕ КАНЦЕРОГЕННО',
-    },
-    uz: {
-      'Group 1': 'INSONLAR UCHUN KANSEROGEN',
-      'Group 2A': 'EHTIMOLIY KANSEROGEN',
-      'Group 2B': 'BOʻLISHI MUMKIN BOʻLGAN KANSEROGEN',
-      'Group 3': 'TASNIFLANMAGAN',
-      'Group 4': 'EHTIMOL KANSEROGEN EMAS',
-    }
-  }
-  return labels[language][group] || group
+const getGroupBadgeColor = (group: string) => {
+  if (group.includes('1')) return 'bg-destructive text-destructive-foreground'
+  if (group.includes('2A')) return 'bg-orange-600 text-white'
+  if (group.includes('2B')) return 'bg-amber-500 text-white'
+  return 'bg-slate-500 text-white'
 }
 
 export default function ResultsDisplay({ results, onNewAnalysis, language = 'en' }: ResultsDisplayProps) {
-  const hasCarcinogens = results.carcinogensFound && results.carcinogensFound.length > 0
+  const hasCarcinogens = results.carcinogens && results.carcinogens.length > 0
 
   return (
-    <div className="space-y-6">
-      {/* Overall Assessment */}
-      <Card className={`p-6 border-2 ${hasCarcinogens ? 'border-destructive/30' : 'border-primary/30'}`}>
-        <div className="flex gap-4 items-start">
-          {hasCarcinogens ? (
-            <AlertTriangle className="w-6 h-6 text-destructive flex-shrink-0 mt-1" />
-          ) : (
-            <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
-          )}
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-foreground mb-2">
-              {t('results.assessment', language)}
-            </h3>
-            <p className="text-muted-foreground whitespace-pre-wrap">
-              {results.overallAssessment === "Доказательства недостаточны" || 
-               results.overallAssessment === "Dalillar yetarli emas" ||
-               results.overallAssessment === "Insufficient evidence" 
-               ? t('label.insufficient', language) 
-               : results.overallAssessment}
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Risk Level Header */}
+      <Card className={`p-8 border-2 shadow-2xl ${getRiskColor(results.overallRisk)}`}>
+        <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
+          <div className="p-4 rounded-2xl bg-white/50 dark:bg-black/20 shadow-inner">
+            {results.overallRisk === 'High Risk' ? (
+              <AlertTriangle className="w-12 h-12 text-destructive" />
+            ) : results.overallRisk === 'Caution' ? (
+              <AlertCircle className="w-12 h-12 text-amber-600" />
+            ) : (
+              <CheckCircle2 className="w-12 h-12 text-emerald-600" />
+            )}
+          </div>
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center justify-center md:justify-start gap-3">
+              <h3 className="text-3xl font-black uppercase tracking-tighter">
+                {results.overallRisk === 'High Risk' ? t('risk.high', language) : 
+                 results.overallRisk === 'Caution' ? t('risk.caution', language) : 
+                 t('risk.safe', language)}
+              </h3>
+              <Badge variant="outline" className="font-mono text-[10px] uppercase border-current">{results.inputType}</Badge>
+            </div>
+            <p className="text-lg font-medium leading-relaxed opacity-90">
+              {results.assessment}
             </p>
           </div>
         </div>
       </Card>
 
-      {/* Carcinogens List */}
-      {hasCarcinogens && (
-        <div className="space-y-4">
-          <h3 className="text-2xl font-bold text-foreground">
-            {t('results.carcinogenFound', language)} {results.carcinogensFound.length}
-          </h3>
-          
-          {results.carcinogensFound.map((carcinogen, idx) => (
-            <Card key={idx} className="p-6 border-2 border-border hover:border-primary/30 transition">
-              <div className="space-y-4">
-                {/* Name and Classification */}
-                <div className="flex items-start justify-between gap-4">
-                  <h4 className="text-xl font-bold text-foreground">
-                    {carcinogen.name}
-                  </h4>
-                  <Badge className={`${getGroupColor(carcinogen.iarcGroup)} whitespace-nowrap text-xs font-bold`}>
-                    {carcinogen.iarcGroup}
-                  </Badge>
-                </div>
-
-                {/* Group Label and Year */}
-                <div className="text-sm">
-                  <p className="font-semibold text-foreground">
-                    {getGroupLabel(carcinogen.iarcGroup, language)}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {t('results.year', language)}: {carcinogen.evaluationYear}
-                  </p>
-                </div>
-
-                {/* Evidence Strength */}
-                <div className="flex gap-2">
-                  <span className="text-sm font-medium text-muted-foreground">{t('results.strength', language)}:</span>
-                  <Badge variant="outline" className="text-xs">
-                    {carcinogen.evidenceStrength}
-                  </Badge>
-                </div>
-
-                {/* Cancer Sites */}
-                {carcinogen.primaryCancerSites && carcinogen.primaryCancerSites.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium text-foreground mb-2">{t('results.sites', language)}:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {carcinogen.primaryCancerSites.map((site, i) => {
-                        const translationKey = `cancer.${site.toLowerCase().trim()}`
-                        return (
-                          <Badge key={i} variant="secondary" className="text-xs">
-                            {translations[language][translationKey] || site}
-                          </Badge>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Exposure Routes */}
-                {carcinogen.exposureRoutes && carcinogen.exposureRoutes.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium text-foreground mb-2">{t('results.exposure', language)}:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {carcinogen.exposureRoutes.map((route, i) => (
-                        <Badge key={i} variant="outline" className="text-xs">
-                          {route}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Safe Limit */}
-                {carcinogen.safeLimit && (
-                  <div className="p-3 bg-muted/50 rounded-lg border border-border">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">{t('results.limit', language)}:</p>
-                    <p className="text-sm text-foreground">{carcinogen.safeLimit}</p>
-                  </div>
-                )}
-
-                {/* Source */}
-                <div className="text-xs text-muted-foreground border-t border-border pt-3">
-                  <p className="font-medium mb-1">{t('results.source', language)}:</p>
-                  <p className="font-mono">{carcinogen.source}</p>
-                </div>
-
-                {/* Notes */}
-                {carcinogen.notes && (
-                  <div className="text-xs text-muted-foreground border-t border-border pt-3">
-                    <p className="font-medium mb-1">Additional Notes:</p>
-                    <p>{carcinogen.notes}</p>
-                  </div>
-                )}
+      {/* Regional Environmental Data */}
+      {results.regionalData && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <MapPin className="w-6 h-6 text-primary" />
+            <h3 className="text-2xl font-black tracking-tight">{t('map.title', language)}: {results.regionalData.location}</h3>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20"><Droplets className="w-5 h-5 text-blue-600" /></div>
+                <h4 className="font-bold">{t('map.water', language)}</h4>
               </div>
+              <ul className="space-y-2">
+                {results.regionalData.waterQuality.map((item, i) => (
+                  <li key={i} className="text-sm text-slate-500 flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400" /> {item}
+                  </li>
+                ))}
+              </ul>
             </Card>
-          ))}
+            <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20"><Wind className="w-5 h-5 text-emerald-600" /></div>
+                <h4 className="font-bold">{t('map.air', language)}</h4>
+              </div>
+              <ul className="space-y-2">
+                {results.regionalData.airQuality.map((item, i) => (
+                  <li key={i} className="text-sm text-slate-500 flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> {item}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+            <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20"><Mountain className="w-5 h-5 text-orange-600" /></div>
+                <h4 className="font-bold">{t('map.soil', language)}</h4>
+              </div>
+              <ul className="space-y-2">
+                {results.regionalData.soilQuality.map((item, i) => (
+                  <li key={i} className="text-sm text-slate-500 flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-orange-400" /> {item}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* Identified Substances */}
+      {hasCarcinogens && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-2xl font-black tracking-tight flex items-center gap-3">
+              <Info className="w-6 h-6 text-primary" />
+              {t('report.substances', language)}
+            </h3>
+            <Badge variant="secondary" className="font-bold">{results.carcinogens.length}</Badge>
+          </div>
+          
+          <div className="grid gap-6">
+            {results.carcinogens.map((carc, idx) => (
+              <Card key={idx} className="overflow-hidden border-slate-200 dark:border-slate-800 shadow-xl group hover:border-primary/30 transition-all">
+                <div className="flex">
+                  <div className={`w-2 ${getGroupBadgeColor(carc.iarcGroup)}`} />
+                  <div className="p-8 flex-1 space-y-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <h4 className="text-2xl font-black text-slate-900 dark:text-white group-hover:text-primary transition-colors">
+                          {carc.name}
+                        </h4>
+                        <p className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest mt-1">
+                          Evaluated {carc.evaluationYear}
+                        </p>
+                      </div>
+                      <Badge className={`${getGroupBadgeColor(carc.iarcGroup)} px-4 py-1 text-xs font-black rounded-full`}>
+                        IARC {carc.iarcGroup}
+                      </Badge>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <AlertCircle className="w-3 h-3" /> {t('report.disease_link', language)}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {carc.linkedOncology.map((disease, i) => (
+                            <Badge key={i} variant="secondary" className="bg-destructive/5 text-destructive border-destructive/10 font-bold">
+                              {disease}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <Droplets className="w-3 h-3" /> {t('report.pathways', language)}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {carc.exposureRoutes.map((path, i) => (
+                            <Badge key={i} variant="outline" className="font-bold border-slate-200 text-slate-600">
+                              {path}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('report.citations', language)}</p>
+                        <p className="text-sm font-mono font-medium text-slate-600 dark:text-slate-400">{carc.monographRef}</p>
+                      </div>
+                      {carc.safeLimits && (
+                        <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-100 dark:border-slate-700">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('results.limit', language)}</p>
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{carc.safeLimits}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
       {/* Recommendations */}
       {results.recommendations && results.recommendations.length > 0 && (
-        <Card className="p-6 border-2 border-primary/20 bg-primary/5">
-          <h4 className="text-lg font-bold text-foreground mb-3">{t('results.recommendations', language)}</h4>
-          <ul className="space-y-2">
+        <Card className="p-10 border-emerald-500/20 bg-emerald-50/30 dark:bg-emerald-950/10 shadow-xl">
+          <h4 className="text-xl font-black text-emerald-900 dark:text-emerald-100 mb-6 flex items-center gap-3">
+            <Info className="w-6 h-6" />
+            {t('report.recommendations', language)}
+          </h4>
+          <ul className="grid md:grid-cols-2 gap-4">
             {results.recommendations.map((rec, idx) => (
-              <li key={idx} className="flex gap-3 text-sm text-muted-foreground">
-                <span className="text-primary font-bold">•</span>
+              <li key={idx} className="flex gap-4 p-4 rounded-xl bg-white/50 dark:bg-black/20 border border-emerald-500/10 text-sm font-medium text-slate-700 dark:text-slate-300">
+                <span className="text-emerald-500 font-black">✓</span>
                 <span>{rec}</span>
               </li>
             ))}
@@ -202,18 +205,18 @@ export default function ResultsDisplay({ results, onNewAnalysis, language = 'en'
       )}
 
       {/* Disclaimer */}
-      <Card className="p-4 bg-muted/30 border-border">
-        <p className="text-xs text-muted-foreground">
-          ⓘ <strong>{t('nav.title', language)}:</strong> {t('results.disclaimer', language)}
+      <Card className="p-6 bg-slate-100/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
+        <p className="text-[11px] text-slate-500 leading-relaxed text-center">
+          <strong>{t('nav.title', language)} Medical Policy:</strong> {t('results.disclaimer', language)}
         </p>
       </Card>
 
-      {/* New Analysis Button */}
-      <div className="flex justify-center">
+      {/* Action Button */}
+      <div className="flex justify-center pt-6">
         <Button
           onClick={onNewAnalysis}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
           size="lg"
+          className="rounded-full px-12 h-16 text-lg font-black shadow-2xl shadow-primary/30 transition-all hover:scale-105 active:scale-95"
         >
           {t('results.newAnalysis', language)}
         </Button>

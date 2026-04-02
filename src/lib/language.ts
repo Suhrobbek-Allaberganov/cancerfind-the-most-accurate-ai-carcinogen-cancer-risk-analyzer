@@ -47,6 +47,21 @@ export const translations: Record<Language, Record<string, string>> = {
     'cancer.bladder': 'Siydik pufagi saratoni',
     'cancer.skin': 'Teri saratoni',
     'cancer.colorectal': 'Yoʻgʻon ichak saratoni',
+    'cancer.stomach': 'Oshqozon saratoni',
+    'cancer.pancreas': 'Oshqozon osti bezi saratoni',
+    'cancer.prostate': 'Prostata saratoni',
+    'cancer.mesothelioma': 'Mezotelioma',
+    'cancer.ovarian': 'Tuxumdon saratoni',
+    'cancer.laryngeal': 'Hiqildoq saratoni',
+    'cancer.nasopharyngeal': 'Burun-halqum saratoni',
+    'cancer.bone marrow': 'Suyak iligi saratoni',
+    'cancer.non-Hodgkin lymphoma': 'Noxodjkin limfomasi',
+    'cancer.thyroid': 'Qalqonsimon bez saratoni',
+    'cancer.kidney': 'Buyrak saratoni',
+    'cancer.esophagus': 'Qiziloʻngach saratoni',
+    'cancer.pharynx': 'Halqum saratoni',
+    'cancer.oral cavity': 'Ogʻiz boʻshligʻi saratoni',
+    'cancer.multiple': 'Turli aʼzolar',
     
     // IARC Groups
     'iarc.group1': 'Guruh 1: Insonlar uchun kanserogen (aniq dalil)',
@@ -55,8 +70,34 @@ export const translations: Record<Language, Record<string, string>> = {
     'iarc.group3': 'Guruh 3: Kanserogen deb tasniflanmagan (yetarli boʻlmagan dalil)',
     'iarc.group4': 'Guruh 4: Ehtimol insonlar uchun kanserogen emas',
     
-    // Labels
-    'label.insufficient': 'Dalillar yetarli emas',
+    // Risk Levels
+    'risk.safe': 'Xavfsiz',
+    'risk.caution': 'Ehtiyot boʻling',
+    'risk.high': 'Yuqori xavf',
+    
+    // Scientific Risk Report
+    'report.title': 'Ilmiy Xavf Hisoboti',
+    'report.substances': 'Aniqlangan moddalar',
+    'report.disease_link': 'Onkologik kasallik bogʻliqligi',
+    'report.pathways': 'Maruzlik yoʻllari',
+    'report.recommendations': 'Tavsiyalar',
+    'report.citations': 'Ilmiy manbalar',
+    
+    // Regional Hazard Map
+    'map.title': 'Mintaqaviy Xavf Xaritasi',
+    'map.description': 'Hududingizdagi suv, havo va tuproqdagi kanserogenlarni tahlil qilish.',
+    'map.location.detect': 'Joylashuvni aniqlash',
+    'map.location.placeholder': 'Shahar yoki tuman nomini kiriting...',
+    'map.pollutants': 'Mintaqaviy ifloslantiruvchilar',
+    'map.water': 'Suv sifati',
+    'map.air': 'Havo sifati',
+    'map.soil': 'Tuproq holati',
+    
+    // Hybrid System
+    'analyzer.hybrid.scan': 'Shtrix-kodni skanerlash',
+    'analyzer.hybrid.photo': 'Foto tahlil (AI Vision)',
+    'analyzer.hybrid.text': 'Matnli tahlil',
+    'analyzer.placeholder': 'Masalan: "processed red meat", "PFAS in water", "Toshkent havo sifati", "E171"...',
     'analyzer.image.error.fallback': 'Rasm tahlili hozirda muammo boʻlyapti, ingredientlar roʻyxatini matn bilan yozing!',
     
     // Navigation
@@ -69,6 +110,10 @@ export const translations: Record<Language, Record<string, string>> = {
     'home.hero.title': 'Sizning Saraton Xavfini Bilib Oling',
     'home.hero.description': 'CancerFind 1,123+ modda, mahsulot va fizik omillarni IARC Monographs (Volumes 1–140) va WHO 2026 bazalari asosida tahlil qiladi. Toʻliq va cheklovsiz tahlil.',
     'home.hero.button': 'Tahlilni Boshlang',
+    'home.recent_products': 'Yaqinda tahlil qilingan mahsulotlar',
+    
+    'home.stats.carcinogens': 'Kanserogenlar',
+    'home.stats.updated': 'Yangilangan',
     
     'home.features.title': 'Qanday Ishlaydi',
     'home.features.input': 'Maʼlumot Kiritish',
@@ -92,7 +137,6 @@ export const translations: Record<Language, Record<string, string>> = {
     'analyzer.title': 'Kanserogen Tahlili',
     'analyzer.subtitle': 'Mahsulot, ingredient, kimyoviy modda yoki hududni kiriting. IARC Monographs 1–140 boʻyicha tahlil.',
     'analyzer.label': 'Mahsulot, Ingredient yoki Kimyoviy Modda Nomi',
-    'analyzer.placeholder': 'Masalan: "processed red meat", "PFAS in water", "air quality in London", "E171"...',
     'analyzer.image.label': 'Yoki Mahsulot Tasviri Yuklang',
     'analyzer.image.placeholder': 'Qadoq tasviri yuklash uchun bosing',
     'analyzer.image.uploaded': 'Tasvir yuklandi ✓',
@@ -132,6 +176,21 @@ export const translations: Record<Language, Record<string, string>> = {
     'cancer.bladder': 'Рак мочевого пузыря',
     'cancer.skin': 'Рак кожи',
     'cancer.colorectal': 'Колоректальный рак',
+    'cancer.stomach': 'Рак желудка',
+    'cancer.pancreas': 'Рак поджелудочной железы',
+    'cancer.prostate': 'Рак простаты',
+    'cancer.mesothelioma': 'Мезотелиома',
+    'cancer.ovarian': 'Рак яичников',
+    'cancer.laryngeal': 'Рак гортани',
+    'cancer.nasopharyngeal': 'Рак носоглотки',
+    'cancer.bone marrow': 'Рак костного мозга',
+    'cancer.non-Hodgkin lymphoma': 'Неходжкинская лимфома',
+    'cancer.thyroid': 'Рак щитовидной железы',
+    'cancer.kidney': 'Рак почек',
+    'cancer.esophagus': 'Рак пищевода',
+    'cancer.pharynx': 'Рак глотки',
+    'cancer.oral cavity': 'Рак полости рта',
+    'cancer.multiple': 'Множественные органы',
     
     // IARC Groups
     'iarc.group1': 'Группа 1: Канцерогенно для человека (явные доказательства)',
@@ -140,8 +199,34 @@ export const translations: Record<Language, Record<string, string>> = {
     'iarc.group3': 'Группа 3: Не классифицируется как канцероген (недостаточные доказательства)',
     'iarc.group4': 'Группа 4: Вероятно не канцерогенно для человека',
     
-    // Labels
-    'label.insufficient': 'Доказательства недостаточны',
+    // Risk Levels
+    'risk.safe': 'Безопасно',
+    'risk.caution': 'Осторожно',
+    'risk.high': 'Высокий риск',
+    
+    // Scientific Risk Report
+    'report.title': 'Научный отчет о рисках',
+    'report.substances': 'Выявленные вещества',
+    'report.disease_link': 'Связь с онкологическими заболеваниями',
+    'report.pathways': 'Пути воздействия',
+    'report.recommendations': 'Рекомендации',
+    'report.citations': 'Научные источники',
+    
+    // Regional Hazard Map
+    'map.title': 'Карта региональных угроз',
+    'map.description': 'Анализ канцерогенов в воде, воздухе и почве в вашем регионе.',
+    'map.location.detect': 'Определить местоположение',
+    'map.location.placeholder': 'Введите город или район...',
+    'map.pollutants': 'Региональные загрязнения',
+    'map.water': 'Качество воды',
+    'map.air': 'Качество воздуха',
+    'map.soil': 'Состояние почвы',
+    
+    // Hybrid System
+    'analyzer.hybrid.scan': 'Сканировать штрих-код',
+    'analyzer.hybrid.photo': 'Фото анализ (AI Vision)',
+    'analyzer.hybrid.text': 'Текстовый анализ',
+    'analyzer.placeholder': 'Например: "processed red meat", "PFAS in water", "качество воздуха в Москве", "E171"...',
     'analyzer.image.error.fallback': 'Проблема с анализом изображения, введите список ингредиентов текстом!',
     
     // Navigation
@@ -154,6 +239,10 @@ export const translations: Record<Language, Record<string, string>> = {
     'home.hero.title': 'Узнайте ваш риск рака',
     'home.hero.description': 'CancerFind анализирует более 1,123 веществ и факторов на основе IARC Monographs (Volumes 1–140) и баз ВОЗ 2026. Полный и безлимитный анализ.',
     'home.hero.button': 'Начать анализ',
+    'home.recent_products': 'Недавно проанализированные продукты',
+    
+    'home.stats.carcinogens': 'Канцерогенов',
+    'home.stats.updated': 'Обновлено',
     
     'home.features.title': 'Как это работает',
     'home.features.input': 'Ввод данных',
@@ -177,7 +266,6 @@ export const translations: Record<Language, Record<string, string>> = {
     'analyzer.title': 'Анализ канцерогенов',
     'analyzer.subtitle': 'Введите продукт, ингредиент, химикат или локацию. Анализ по IARC Monographs 1–140.',
     'analyzer.label': 'Название продукта, ингредиента или вещества',
-    'analyzer.placeholder': 'Например: "processed red meat", "PFAS in water", "air quality in Moscow", "E171"...',
     'analyzer.image.label': 'Или загрузите фото продукта',
     'analyzer.image.placeholder': 'Нажмите, чтобы загрузить фото упаковки',
     'analyzer.image.uploaded': 'Изображение загружено ✓',
@@ -217,6 +305,21 @@ export const translations: Record<Language, Record<string, string>> = {
     'cancer.bladder': 'Bladder cancer',
     'cancer.skin': 'Skin cancer',
     'cancer.colorectal': 'Colorectal cancer',
+    'cancer.stomach': 'Stomach cancer',
+    'cancer.pancreas': 'Pancreatic cancer',
+    'cancer.prostate': 'Prostate cancer',
+    'cancer.mesothelioma': 'Mesothelioma',
+    'cancer.ovarian': 'Ovarian cancer',
+    'cancer.laryngeal': 'Laryngeal cancer',
+    'cancer.nasopharyngeal': 'Nasopharyngeal cancer',
+    'cancer.bone marrow': 'Bone marrow cancer',
+    'cancer.non-Hodgkin lymphoma': 'Non-Hodgkin lymphoma',
+    'cancer.thyroid': 'Thyroid cancer',
+    'cancer.kidney': 'Kidney cancer',
+    'cancer.esophagus': 'Esophageal cancer',
+    'cancer.pharynx': 'Pharyngeal cancer',
+    'cancer.oral cavity': 'Oral cavity cancer',
+    'cancer.multiple': 'Multiple sites',
     
     // IARC Groups
     'iarc.group1': 'Group 1: Carcinogenic to humans (definite evidence)',
@@ -225,8 +328,34 @@ export const translations: Record<Language, Record<string, string>> = {
     'iarc.group3': 'Group 3: Not classifiable as carcinogenic (insufficient evidence)',
     'iarc.group4': 'Group 4: Probably not carcinogenic to humans',
     
-    // Labels
-    'label.insufficient': 'Insufficient evidence',
+    // Risk Levels
+    'risk.safe': 'Safe',
+    'risk.caution': 'Caution',
+    'risk.high': 'High Risk',
+    
+    // Scientific Risk Report
+    'report.title': 'Scientific Risk Report',
+    'report.substances': 'Identified substances',
+    'report.disease_link': 'Oncological disease linkage',
+    'report.pathways': 'Exposure pathways',
+    'report.recommendations': 'Recommendations',
+    'report.citations': 'Scientific citations',
+    
+    // Regional Hazard Map
+    'map.title': 'Regional Hazard Map',
+    'map.description': 'Analysis of carcinogens in water, air, and soil in your region.',
+    'map.location.detect': 'Detect location',
+    'map.location.placeholder': 'Enter city or district...',
+    'map.pollutants': 'Regional Pollutants',
+    'map.water': 'Water Quality',
+    'map.air': 'Air Quality',
+    'map.soil': 'Soil Condition',
+    
+    // Hybrid System
+    'analyzer.hybrid.scan': 'Scan Barcode',
+    'analyzer.hybrid.photo': 'Photo Analysis (AI Vision)',
+    'analyzer.hybrid.text': 'Text Analysis',
+    'analyzer.placeholder': 'e.g., "processed red meat", "PFAS in water", "air quality in London", "E171"...',
     'analyzer.image.error.fallback': 'Image analysis issue, please type the ingredients list as text!',
     
     // Navigation
@@ -239,6 +368,10 @@ export const translations: Record<Language, Record<string, string>> = {
     'home.hero.title': 'Know Your Cancer Risk',
     'home.hero.description': 'CancerFind analyzes 1,123+ agents, products, and physical factors based on IARC Monographs (Volumes 1–140) and WHO 2026 databases. Comprehensive and unrestricted.',
     'home.hero.button': 'Start Analysis',
+    'home.recent_products': 'Recently Analyzed Products',
+    
+    'home.stats.carcinogens': 'Carcinogens',
+    'home.stats.updated': 'Updated',
     
     'home.features.title': 'How It Works',
     'home.features.input': 'Data Input',
@@ -262,7 +395,6 @@ export const translations: Record<Language, Record<string, string>> = {
     'analyzer.title': 'Carcinogen Analysis',
     'analyzer.subtitle': 'Enter product, ingredient, chemical, or location. Analysis per IARC Monographs 1–140.',
     'analyzer.label': 'Product, Ingredient, or Chemical Name',
-    'analyzer.placeholder': 'e.g., "processed red meat", "PFAS in water", "air quality in London", "E171"...',
     'analyzer.image.label': 'Or Upload Product Image',
     'analyzer.image.placeholder': 'Click to upload label image',
     'analyzer.image.uploaded': 'Image uploaded ✓',
