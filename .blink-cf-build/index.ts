@@ -26,16 +26,17 @@ app.post("/analyze", async (c) => {
   }
 
   const aiKey = c.env.GOOGLE_AI_API_KEY;
-  // Use v1 API version as requested to avoid v1beta model availability issues
-  const genAI = new GoogleGenerativeAI(aiKey, { apiVersion: 'v1' });
+  const genAI = new GoogleGenerativeAI(aiKey);
   
-  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+  // Use gemini-1.5-flash with v1 API as requested
+  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro"];
   let lastError = null;
 
   for (const modelName of modelsToTry) {
     try {
-      console.log(`Backend: Attempting analysis with ${modelName}`);
-      const model = genAI.getGenerativeModel({ model: modelName });
+      console.log(`Backend: Attempting analysis with ${modelName} (API v1)`);
+      // Explicitly set apiVersion to 'v1' in model options
+      const model = genAI.getGenerativeModel({ model: modelName, apiVersion: 'v1' });
 
       let prompt = `
         You are CancerFind, a comprehensive AI carcinogen analyst. 
@@ -86,7 +87,7 @@ app.post("/analyze", async (c) => {
       const response = await result.response;
       const text = response.text();
       
-      console.log(`Backend: AI Response received from ${modelName}`);
+      console.log(`Backend: AI Response received from ${modelName} (API v1)`);
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -94,31 +95,20 @@ app.post("/analyze", async (c) => {
           const parsed = JSON.parse(jsonMatch[0]);
           return c.json(parsed);
         } catch (parseError) {
-          console.error(`Backend: JSON Parse Error with ${modelName}`, parseError);
-          // Continue to next model if JSON is invalid
+          console.error(`Backend: JSON Parse Error with ${modelName} (API v1)`, parseError);
         }
       } else {
-        console.error(`Backend: No JSON found in AI response from ${modelName}`);
+        console.error(`Backend: No JSON found in AI response from ${modelName} (API v1)`);
       }
     } catch (error: any) {
-      console.error(`Backend: Analysis failed with ${modelName}:`, error.message);
+      console.error(`Backend: Analysis failed with ${modelName} (API v1):`, error.message);
       lastError = error;
       
       if (error.message?.includes("API key not valid")) {
         return c.json({ error: "api_key_invalid", details: error.message }, 401);
       }
       
-      // If it's a 404, model not found, or API version issue, we continue to next model
-      if (
-        error.message?.includes("not found") || 
-        error.message?.includes("404") || 
-        error.message?.includes("not supported") ||
-        error.message?.includes("API version")
-      ) {
-        continue;
-      }
-      
-      // For other errors, we might want to retry with next model too
+      // Continue to next model if this one failed
       continue;
     }
   }

@@ -8551,13 +8551,13 @@ app.post("/analyze", async (c) => {
     return c.json({ error: "api_key_missing" }, 400);
   }
   const aiKey = c.env.GOOGLE_AI_API_KEY;
-  const genAI = new GoogleGenerativeAI(aiKey, { apiVersion: "v1" });
-  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+  const genAI = new GoogleGenerativeAI(aiKey);
+  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro"];
   let lastError = null;
   for (const modelName of modelsToTry) {
     try {
-      console.log(`Backend: Attempting analysis with ${modelName}`);
-      const model = genAI.getGenerativeModel({ model: modelName });
+      console.log(`Backend: Attempting analysis with ${modelName} (API v1)`);
+      const model = genAI.getGenerativeModel({ model: modelName, apiVersion: "v1" });
       let prompt = `
         You are CancerFind, a comprehensive AI carcinogen analyst. 
         Analyze the following product input (${type}): "${input}"
@@ -8604,26 +8604,23 @@ app.post("/analyze", async (c) => {
       }
       const response = await result.response;
       const text = response.text();
-      console.log(`Backend: AI Response received from ${modelName}`);
+      console.log(`Backend: AI Response received from ${modelName} (API v1)`);
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           const parsed = JSON.parse(jsonMatch[0]);
           return c.json(parsed);
         } catch (parseError) {
-          console.error(`Backend: JSON Parse Error with ${modelName}`, parseError);
+          console.error(`Backend: JSON Parse Error with ${modelName} (API v1)`, parseError);
         }
       } else {
-        console.error(`Backend: No JSON found in AI response from ${modelName}`);
+        console.error(`Backend: No JSON found in AI response from ${modelName} (API v1)`);
       }
     } catch (error) {
-      console.error(`Backend: Analysis failed with ${modelName}:`, error.message);
+      console.error(`Backend: Analysis failed with ${modelName} (API v1):`, error.message);
       lastError = error;
       if (error.message?.includes("API key not valid")) {
         return c.json({ error: "api_key_invalid", details: error.message }, 401);
-      }
-      if (error.message?.includes("not found") || error.message?.includes("404") || error.message?.includes("not supported") || error.message?.includes("API version")) {
-        continue;
       }
       continue;
     }
