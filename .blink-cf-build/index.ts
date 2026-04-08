@@ -21,8 +21,10 @@ app.post("/analyze", async (c) => {
   const { input, type, language, imageData } = await c.req.json();
   
   if (!c.env.GOOGLE_AI_API_KEY) {
+    console.error("Backend: GOOGLE_AI_API_KEY is missing from environment");
     return c.json({ error: "api_key_missing" }, 400);
   }
+  console.log(`Backend: AI key found, length: ${c.env.GOOGLE_AI_API_KEY.length}`);
 
   try {
     const genAI = getGenAI(c);
