@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createClient } from "@blinkdotnew/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const app = new Hono();
 
@@ -12,7 +13,81 @@ const getBlink = (c: any) =>
     secretKey: c.env.BLINK_SECRET_KEY,
   });
 
+const getGenAI = (c: any) => new GoogleGenerativeAI(c.env.GOOGLE_AI_API_KEY || "");
+
 app.get("/", (c) => c.text("CancerFind Backend API"));
+
+app.post("/analyze", async (c) => {
+  const { input, type, language, imageData } = await c.req.json();
+  
+  if (!c.env.GOOGLE_AI_API_KEY) {
+    return c.json({ error: "api_key_missing" }, 400);
+  }
+
+  try {
+    const genAI = getGenAI(c);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    let prompt = `
+      You are CancerFind, a comprehensive AI carcinogen analyst. 
+      Analyze the following product input (${type}): "${input}"
+      
+      STRICT RULES:
+      1. Categorize substances into IARC Groups (1, 2A, 2B, 3).
+      2. Provide the specific Oncological Disease linked to each carcinogen (e.g., Leukemia, Gastric Cancer, Lung Cancer).
+      3. Use IARC Monographs (Volumes 1-140) and WHO 2026 guidelines.
+      4. Translate ALL medical terms and cancer types into ${language}.
+      5. Return the result in JSON format matching the following interface:
+      
+      {
+        "carcinogens": [
+          {
+            "name": "string",
+            "iarcGroup": "1|2A|2B|3",
+            "linkedOncology": ["string"],
+            "evaluationYear": number,
+            "monographRef": "string",
+            "exposureRoutes": ["string"],
+            "evidenceStrength": "string",
+            "safeLimits": "string"
+          }
+        ],
+        "overallRisk": "Safe|Caution|High Risk",
+        "assessment": "string",
+        "recommendations": ["string"]
+      }
+    `;
+
+    let result;
+    if (type === 'image' && imageData) {
+      const parts = [
+        { text: prompt },
+        {
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: imageData.split(',')[1] || imageData
+          }
+        }
+      ];
+      result = await model.generateContent({ contents: [{ role: 'user', parts }] });
+    } else {
+      result = await model.generateContent(prompt);
+    }
+
+    const response = await result.response;
+    const text = response.text();
+    
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return c.json(JSON.parse(jsonMatch[0]));
+    }
+    
+    return c.json({ error: "FAILED_TO_PARSE_SCIENTIFIC_REPORT" }, 500);
+  } catch (error: any) {
+    console.error("Analysis Error:", error);
+    return c.json({ error: "Analysis failed", details: error.message }, 500);
+  }
+});
 
 app.post("/batch-populate", async (c) => {
   const blink = getBlink(c);
