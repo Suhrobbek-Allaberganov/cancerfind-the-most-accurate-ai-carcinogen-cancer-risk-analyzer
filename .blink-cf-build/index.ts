@@ -23,7 +23,8 @@ app.post("/analyze", async (c) => {
   }
 
   const aiKey = c.env.GOOGLE_AI_API_KEY;
-  const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro", "gemini-2.0-pro"];
+  // gemini-2.0-pro is not in the list of available models for this API key. We will use gemini-2.5-flash and gemini-2.0-flash which we confirmed are available.
+  const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro", "gemini-flash-latest"];
   let lastError = null;
 
   console.log(`Backend: Starting direct fetch analysis for type ${type} in ${language}`);
@@ -41,7 +42,8 @@ app.post("/analyze", async (c) => {
         2. Provide the specific Oncological Disease linked to each carcinogen (e.g., Leukemia, Gastric Cancer, Lung Cancer).
         3. Use IARC Monographs (Volumes 1-140) and WHO 2026 guidelines.
         4. Translate ALL medical terms and cancer types into ${language}.
-        5. Return ONLY a JSON object matching the following interface:
+        5. CRITICAL RULE: If you detect Processed Meat (or any processed meat product like hot dog, sausage, salami, etc.), it MUST be strictly categorized as a Group 1 carcinogen. Never classify processed meat as safe or low risk.
+        6. Return ONLY a JSON object matching the following interface:
         
         {
           "carcinogens": [
