@@ -39,7 +39,7 @@ export async function analyzeProduct(input: string, type: 'text' | 'barcode' | '
       if (errorData.error === "api_key_invalid") {
         throw new Error("GOOGLE_AI_API_KEY_INVALID");
       }
-      throw new Error(errorData.details || errorData.error || "Analysis failed");
+      throw new Error(errorData.details || errorData.error || "Scientific analysis failed. Please try again.");
     }
 
     return await response.json();

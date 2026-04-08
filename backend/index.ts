@@ -25,119 +25,103 @@ app.post("/analyze", async (c) => {
     return c.json({ error: "api_key_missing" }, 400);
   }
 
-  try {
-    const aiKey = c.env.GOOGLE_AI_API_KEY;
-    const genAI = new GoogleGenerativeAI(aiKey);
-    
-    // Try flash first, then pro if flash fails with 404
-    let model;
+  const aiKey = c.env.GOOGLE_AI_API_KEY;
+  const genAI = new GoogleGenerativeAI(aiKey);
+  
+  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+  let lastError = null;
+
+  for (const modelName of modelsToTry) {
     try {
-      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      console.log(`Backend: Initialized gemini-1.5-flash`);
-    } catch (e) {
-      console.error("Backend: Failed to init flash model, trying pro", e);
-      model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-    }
+      console.log(`Backend: Attempting analysis with ${modelName}`);
+      const model = genAI.getGenerativeModel({ model: modelName });
 
-    console.log(`Backend: Starting analysis for type ${type} in ${language}`);
-
-    let prompt = `
-      You are CancerFind, a comprehensive AI carcinogen analyst. 
-      Analyze the following product input (${type}): "${input}"
-      
-      STRICT RULES:
-      1. Categorize substances into IARC Groups (1, 2A, 2B, 3).
-      2. Provide the specific Oncological Disease linked to each carcinogen (e.g., Leukemia, Gastric Cancer, Lung Cancer).
-      3. Use IARC Monographs (Volumes 1-140) and WHO 2026 guidelines.
-      4. Translate ALL medical terms and cancer types into ${language}.
-      5. Return the result in JSON format matching the following interface:
-      
-      {
-        "carcinogens": [
-          {
-            "name": "string",
-            "iarcGroup": "1|2A|2B|3",
-            "linkedOncology": ["string"],
-            "evaluationYear": number,
-            "monographRef": "string",
-            "exposureRoutes": ["string"],
-            "evidenceStrength": "string",
-            "safeLimits": "string"
-          }
-        ],
-        "overallRisk": "Safe|Caution|High Risk",
-        "assessment": "string",
-        "recommendations": ["string"]
-      }
-    `;
-
-    let result;
-    if (type === 'image' && imageData) {
-      const parts = [
-        { text: prompt },
+      let prompt = `
+        You are CancerFind, a comprehensive AI carcinogen analyst. 
+        Analyze the following product input (${type}): "${input}"
+        
+        STRICT RULES:
+        1. Categorize substances into IARC Groups (1, 2A, 2B, 3).
+        2. Provide the specific Oncological Disease linked to each carcinogen (e.g., Leukemia, Gastric Cancer, Lung Cancer).
+        3. Use IARC Monographs (Volumes 1-140) and WHO 2026 guidelines.
+        4. Translate ALL medical terms and cancer types into ${language}.
+        5. Return the result in JSON format matching the following interface:
+        
         {
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: imageData.split(',')[1] || imageData
+          "carcinogens": [
+            {
+              "name": "string",
+              "iarcGroup": "1|2A|2B|3",
+              "linkedOncology": ["string"],
+              "evaluationYear": number,
+              "monographRef": "string",
+              "exposureRoutes": ["string"],
+              "evidenceStrength": "string",
+              "safeLimits": "string"
+            }
+          ],
+          "overallRisk": "Safe|Caution|High Risk",
+          "assessment": "string",
+          "recommendations": ["string"]
+        }
+      `;
+
+      let result;
+      if (type === 'image' && imageData) {
+        const parts = [
+          { text: prompt },
+          {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: imageData.split(',')[1] || imageData
+            }
           }
-        }
-      ];
-      result = await model.generateContent({ contents: [{ role: 'user', parts }] });
-    } else {
-      result = await model.generateContent(prompt);
-    }
-
-    const response = await result.response;
-    const text = response.text();
-    
-    console.log("Backend: AI Response received");
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return c.json(parsed);
-      } catch (parseError) {
-        console.error("Backend: JSON Parse Error", parseError);
-        return c.json({ error: "FAILED_TO_PARSE_SCIENTIFIC_REPORT", details: "AI returned invalid JSON" }, 500);
+        ];
+        result = await model.generateContent({ contents: [{ role: 'user', parts }] });
+      } else {
+        result = await model.generateContent(prompt);
       }
-    }
-    
-    console.error("Backend: No JSON found in AI response");
-    return c.json({ error: "FAILED_TO_PARSE_SCIENTIFIC_REPORT", details: "No JSON block found" }, 500);
-  } catch (error: any) {
-    console.error("Backend: Analysis Exception:", error);
-    
-    // Fallback logic if flash failed during execution
-    if (error.message?.includes("not found") || error.message?.includes("404")) {
-      try {
-        console.log("Backend: Model not found, attempting fallback to gemini-1.5-pro");
-        const genAI = new GoogleGenerativeAI(c.env.GOOGLE_AI_API_KEY);
-        const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-        
-        let result;
-        if (type === 'image' && imageData) {
-          const parts = [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: imageData.split(',')[1] || imageData } }];
-          result = await fallbackModel.generateContent({ contents: [{ role: 'user', parts }] });
-        } else {
-          result = await fallbackModel.generateContent(prompt);
-        }
-        
-        const response = await result.response;
-        const text = response.text();
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) return c.json(JSON.parse(jsonMatch[0]));
-      } catch (fallbackError: any) {
-        console.error("Backend: Fallback model also failed", fallbackError);
-      }
-    }
 
-    // Categorize common AI errors
-    if (error.message?.includes("API key not valid")) {
-      return c.json({ error: "api_key_invalid", details: error.message }, 401);
+      const response = await result.response;
+      const text = response.text();
+      
+      console.log(`Backend: AI Response received from ${modelName}`);
+
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return c.json(parsed);
+        } catch (parseError) {
+          console.error(`Backend: JSON Parse Error with ${modelName}`, parseError);
+          // Continue to next model if JSON is invalid
+        }
+      } else {
+        console.error(`Backend: No JSON found in AI response from ${modelName}`);
+      }
+    } catch (error: any) {
+      console.error(`Backend: Analysis failed with ${modelName}:`, error.message);
+      lastError = error;
+      
+      if (error.message?.includes("API key not valid")) {
+        return c.json({ error: "api_key_invalid", details: error.message }, 401);
+      }
+      
+      // If it's a 404 or model not found, we continue to next model
+      if (error.message?.includes("not found") || error.message?.includes("404") || error.message?.includes("not supported")) {
+        continue;
+      }
+      
+      // For other errors, we might want to retry with next model too
+      continue;
     }
-    return c.json({ error: "Analysis failed", details: error.message }, 500);
   }
+
+  return c.json({ 
+    error: "Analysis failed", 
+    details: lastError?.message || "All models failed to return a valid report",
+    triedModels: modelsToTry 
+  }, 500);
 });
 
 app.post("/batch-populate", async (c) => {
