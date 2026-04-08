@@ -8551,7 +8551,7 @@ app.post("/analyze", async (c) => {
     return c.json({ error: "api_key_missing" }, 400);
   }
   const aiKey = c.env.GOOGLE_AI_API_KEY;
-  const genAI = new GoogleGenerativeAI(aiKey);
+  const genAI = new GoogleGenerativeAI(aiKey, { apiVersion: "v1" });
   const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
   let lastError = null;
   for (const modelName of modelsToTry) {
@@ -8622,7 +8622,7 @@ app.post("/analyze", async (c) => {
       if (error.message?.includes("API key not valid")) {
         return c.json({ error: "api_key_invalid", details: error.message }, 401);
       }
-      if (error.message?.includes("not found") || error.message?.includes("404") || error.message?.includes("not supported")) {
+      if (error.message?.includes("not found") || error.message?.includes("404") || error.message?.includes("not supported") || error.message?.includes("API version")) {
         continue;
       }
       continue;

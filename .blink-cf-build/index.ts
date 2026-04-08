@@ -26,7 +26,8 @@ app.post("/analyze", async (c) => {
   }
 
   const aiKey = c.env.GOOGLE_AI_API_KEY;
-  const genAI = new GoogleGenerativeAI(aiKey);
+  // Use v1 API version as requested to avoid v1beta model availability issues
+  const genAI = new GoogleGenerativeAI(aiKey, { apiVersion: 'v1' });
   
   const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
   let lastError = null;
@@ -107,8 +108,13 @@ app.post("/analyze", async (c) => {
         return c.json({ error: "api_key_invalid", details: error.message }, 401);
       }
       
-      // If it's a 404 or model not found, we continue to next model
-      if (error.message?.includes("not found") || error.message?.includes("404") || error.message?.includes("not supported")) {
+      // If it's a 404, model not found, or API version issue, we continue to next model
+      if (
+        error.message?.includes("not found") || 
+        error.message?.includes("404") || 
+        error.message?.includes("not supported") ||
+        error.message?.includes("API version")
+      ) {
         continue;
       }
       
