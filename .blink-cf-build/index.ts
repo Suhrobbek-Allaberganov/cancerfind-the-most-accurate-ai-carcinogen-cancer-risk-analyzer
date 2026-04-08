@@ -26,8 +26,18 @@ app.post("/analyze", async (c) => {
   }
 
   try {
-    const genAI = getGenAI(c);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const aiKey = c.env.GOOGLE_AI_API_KEY;
+    const genAI = new GoogleGenerativeAI(aiKey);
+    
+    // Try flash first, then pro if flash fails with 404
+    let model;
+    try {
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      console.log(`Backend: Initialized gemini-1.5-flash`);
+    } catch (e) {
+      console.error("Backend: Failed to init flash model, trying pro", e);
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    }
 
     console.log(`Backend: Starting analysis for type ${type} in ${language}`);
 
@@ -97,6 +107,31 @@ app.post("/analyze", async (c) => {
     return c.json({ error: "FAILED_TO_PARSE_SCIENTIFIC_REPORT", details: "No JSON block found" }, 500);
   } catch (error: any) {
     console.error("Backend: Analysis Exception:", error);
+    
+    // Fallback logic if flash failed during execution
+    if (error.message?.includes("not found") || error.message?.includes("404")) {
+      try {
+        console.log("Backend: Model not found, attempting fallback to gemini-1.5-pro");
+        const genAI = new GoogleGenerativeAI(c.env.GOOGLE_AI_API_KEY);
+        const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        
+        let result;
+        if (type === 'image' && imageData) {
+          const parts = [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: imageData.split(',')[1] || imageData } }];
+          result = await fallbackModel.generateContent({ contents: [{ role: 'user', parts }] });
+        } else {
+          result = await fallbackModel.generateContent(prompt);
+        }
+        
+        const response = await result.response;
+        const text = response.text();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) return c.json(JSON.parse(jsonMatch[0]));
+      } catch (fallbackError: any) {
+        console.error("Backend: Fallback model also failed", fallbackError);
+      }
+    }
+
     // Categorize common AI errors
     if (error.message?.includes("API key not valid")) {
       return c.json({ error: "api_key_invalid", details: error.message }, 401);

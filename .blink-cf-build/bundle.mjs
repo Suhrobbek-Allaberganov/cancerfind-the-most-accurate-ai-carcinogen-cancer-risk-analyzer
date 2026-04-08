@@ -2760,11 +2760,11 @@ var HttpClient = class {
   /**
    * AI-specific requests
    */
-  async aiText(prompt, options = {}) {
+  async aiText(prompt2, options = {}) {
     const { signal, ...body } = options;
     const requestBody = { ...body };
-    if (prompt) {
-      requestBody.prompt = prompt;
+    if (prompt2) {
+      requestBody.prompt = prompt2;
     }
     return this.request(`/api/ai/${this.projectId}/text`, {
       method: "POST",
@@ -2775,7 +2775,7 @@ var HttpClient = class {
   /**
    * Stream AI text generation with Vercel AI SDK data stream format
    */
-  async streamAiText(prompt, options = {}, onChunk) {
+  async streamAiText(prompt2, options = {}, onChunk) {
     const url = this.buildUrl(`/api/ai/${this.projectId}/text`);
     const token = this.getValidToken ? await this.getValidToken() : this.getToken();
     const headers = {
@@ -2785,7 +2785,7 @@ var HttpClient = class {
       headers.Authorization = `Bearer ${token}`;
     }
     const body = {
-      prompt,
+      prompt: prompt2,
       stream: true,
       ...options
     };
@@ -2815,11 +2815,11 @@ var HttpClient = class {
       );
     }
   }
-  async aiObject(prompt, options = {}) {
+  async aiObject(prompt2, options = {}) {
     const { signal, ...body } = options;
     const requestBody = { ...body };
-    if (prompt) {
-      requestBody.prompt = prompt;
+    if (prompt2) {
+      requestBody.prompt = prompt2;
     }
     return this.request(`/api/ai/${this.projectId}/object`, {
       method: "POST",
@@ -2830,7 +2830,7 @@ var HttpClient = class {
   /**
    * Stream AI object generation with Vercel AI SDK data stream format
    */
-  async streamAiObject(prompt, options = {}, onPartial) {
+  async streamAiObject(prompt2, options = {}, onPartial) {
     const url = this.buildUrl(`/api/ai/${this.projectId}/object`);
     const token = this.getValidToken ? await this.getValidToken() : this.getToken();
     const headers = {
@@ -2840,7 +2840,7 @@ var HttpClient = class {
       headers.Authorization = `Bearer ${token}`;
     }
     const body = {
-      prompt,
+      prompt: prompt2,
       stream: true,
       ...options
     };
@@ -2870,12 +2870,12 @@ var HttpClient = class {
       );
     }
   }
-  async aiImage(prompt, options = {}) {
+  async aiImage(prompt2, options = {}) {
     const { signal, ...body } = options;
     return this.request(`/api/ai/${this.projectId}/image`, {
       method: "POST",
       body: {
-        prompt,
+        prompt: prompt2,
         ...body
       },
       signal
@@ -8543,7 +8543,6 @@ var getBlink = (c) => createClient({
   projectId: c.env.BLINK_PROJECT_ID,
   secretKey: c.env.BLINK_SECRET_KEY
 });
-var getGenAI = (c) => new GoogleGenerativeAI(c.env.GOOGLE_AI_API_KEY || "");
 app.get("/", (c) => c.text("CancerFind Backend API"));
 app.post("/analyze", async (c) => {
   const { input, type, language, imageData } = await c.req.json();
@@ -8552,10 +8551,18 @@ app.post("/analyze", async (c) => {
     return c.json({ error: "api_key_missing" }, 400);
   }
   try {
-    const genAI = getGenAI(c);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const aiKey = c.env.GOOGLE_AI_API_KEY;
+    const genAI = new GoogleGenerativeAI(aiKey);
+    let model;
+    try {
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      console.log(`Backend: Initialized gemini-1.5-flash`);
+    } catch (e) {
+      console.error("Backend: Failed to init flash model, trying pro", e);
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    }
     console.log(`Backend: Starting analysis for type ${type} in ${language}`);
-    let prompt = `
+    let prompt2 = `
       You are CancerFind, a comprehensive AI carcinogen analyst. 
       Analyze the following product input (${type}): "${input}"
       
@@ -8587,7 +8594,7 @@ app.post("/analyze", async (c) => {
     let result;
     if (type === "image" && imageData) {
       const parts = [
-        { text: prompt },
+        { text: prompt2 },
         {
           inlineData: {
             mimeType: "image/jpeg",
@@ -8597,7 +8604,7 @@ app.post("/analyze", async (c) => {
       ];
       result = await model.generateContent({ contents: [{ role: "user", parts }] });
     } else {
-      result = await model.generateContent(prompt);
+      result = await model.generateContent(prompt2);
     }
     const response = await result.response;
     const text = response.text();
@@ -8616,6 +8623,26 @@ app.post("/analyze", async (c) => {
     return c.json({ error: "FAILED_TO_PARSE_SCIENTIFIC_REPORT", details: "No JSON block found" }, 500);
   } catch (error) {
     console.error("Backend: Analysis Exception:", error);
+    if (error.message?.includes("not found") || error.message?.includes("404")) {
+      try {
+        console.log("Backend: Model not found, attempting fallback to gemini-1.5-pro");
+        const genAI = new GoogleGenerativeAI(c.env.GOOGLE_AI_API_KEY);
+        const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        let result;
+        if (type === "image" && imageData) {
+          const parts = [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: imageData.split(",")[1] || imageData } }];
+          result = await fallbackModel.generateContent({ contents: [{ role: "user", parts }] });
+        } else {
+          result = await fallbackModel.generateContent(prompt);
+        }
+        const response = await result.response;
+        const text = response.text();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) return c.json(JSON.parse(jsonMatch[0]));
+      } catch (fallbackError) {
+        console.error("Backend: Fallback model also failed", fallbackError);
+      }
+    }
     if (error.message?.includes("API key not valid")) {
       return c.json({ error: "api_key_invalid", details: error.message }, 401);
     }
