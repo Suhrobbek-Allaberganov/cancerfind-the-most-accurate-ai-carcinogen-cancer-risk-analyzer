@@ -44,8 +44,10 @@ export default function AnalyzerPage({ onHome }: AnalyzerPageProps) {
       console.error(error);
       if (error.message === "GOOGLE_AI_API_KEY_MISSING") {
         toast.error("Google AI API Key is missing. Please add GOOGLE_AI_API_KEY to Project Secrets.");
+      } else if (error.message === "GOOGLE_AI_API_KEY_INVALID") {
+        toast.error("Google AI API Key is invalid. Please verify your key in Project Secrets.");
       } else {
-        toast.error(t('analyzer.error'));
+        toast.error(error.message || t('analyzer.error'));
       }
     } finally {
       setIsLoading(false);

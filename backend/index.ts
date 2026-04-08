@@ -21,12 +21,15 @@ app.post("/analyze", async (c) => {
   const { input, type, language, imageData } = await c.req.json();
   
   if (!c.env.GOOGLE_AI_API_KEY) {
+    console.error("Backend: GOOGLE_AI_API_KEY is missing");
     return c.json({ error: "api_key_missing" }, 400);
   }
 
   try {
     const genAI = getGenAI(c);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    console.log(`Backend: Starting analysis for type ${type} in ${language}`);
 
     let prompt = `
       You are CancerFind, a comprehensive AI carcinogen analyst. 
@@ -77,14 +80,27 @@ app.post("/analyze", async (c) => {
     const response = await result.response;
     const text = response.text();
     
+    console.log("Backend: AI Response received");
+
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      return c.json(JSON.parse(jsonMatch[0]));
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return c.json(parsed);
+      } catch (parseError) {
+        console.error("Backend: JSON Parse Error", parseError);
+        return c.json({ error: "FAILED_TO_PARSE_SCIENTIFIC_REPORT", details: "AI returned invalid JSON" }, 500);
+      }
     }
     
-    return c.json({ error: "FAILED_TO_PARSE_SCIENTIFIC_REPORT" }, 500);
+    console.error("Backend: No JSON found in AI response");
+    return c.json({ error: "FAILED_TO_PARSE_SCIENTIFIC_REPORT", details: "No JSON block found" }, 500);
   } catch (error: any) {
-    console.error("Analysis Error:", error);
+    console.error("Backend: Analysis Exception:", error);
+    // Categorize common AI errors
+    if (error.message?.includes("API key not valid")) {
+      return c.json({ error: "api_key_invalid", details: error.message }, 401);
+    }
     return c.json({ error: "Analysis failed", details: error.message }, 500);
   }
 });
