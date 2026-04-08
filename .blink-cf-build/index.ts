@@ -24,7 +24,15 @@ app.post("/analyze", async (c) => {
 
   const aiKey = c.env.GOOGLE_AI_API_KEY;
   // gemini-2.0-pro is not in the list of available models for this API key. We will use gemini-2.5-flash and gemini-2.0-flash which we confirmed are available.
-  const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro", "gemini-flash-latest"];
+  const modelsToTry = [
+    "gemini-2.5-flash", 
+    "gemini-2.0-flash", 
+    "gemini-2.5-pro", 
+    "gemini-2.0-flash-lite-001",
+    "gemini-2.0-flash-lite",
+    "gemini-flash-latest",
+    "gemini-flash-lite-latest"
+  ];
   let lastError = null;
 
   console.log(`Backend: Starting direct fetch analysis for type ${type} in ${language}`);
@@ -79,7 +87,7 @@ app.post("/analyze", async (c) => {
         });
       }
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${aiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${aiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
