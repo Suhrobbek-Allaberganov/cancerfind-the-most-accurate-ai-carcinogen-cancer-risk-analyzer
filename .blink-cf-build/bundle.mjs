@@ -7544,19 +7544,13 @@ app.post("/analyze", async (c) => {
     return c.json({ error: "api_key_missing" }, 400);
   }
   const aiKey = c.env.GOOGLE_AI_API_KEY;
-  const modelsToTry = [
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-flash-8b",
-    "gemini-1.5-pro",
-    "gemini-1.5-pro-latest",
-    "gemini-1.0-pro"
-  ];
+  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro"];
   let lastError = null;
+  console.log(`Backend: Starting direct fetch analysis for type ${type} in ${language}`);
   for (const modelName of modelsToTry) {
     try {
-      console.log(`Backend: Attempting analysis with ${modelName} via REST`);
-      let prompt = `
+      console.log(`Backend: Attempting direct fetch with ${modelName} (v1)`);
+      const prompt = `
         You are CancerFind, a comprehensive AI carcinogen analyst. 
         Analyze the following product input (${type}): "${input}"
         
@@ -7565,7 +7559,7 @@ app.post("/analyze", async (c) => {
         2. Provide the specific Oncological Disease linked to each carcinogen (e.g., Leukemia, Gastric Cancer, Lung Cancer).
         3. Use IARC Monographs (Volumes 1-140) and WHO 2026 guidelines.
         4. Translate ALL medical terms and cancer types into ${language}.
-        5. Return the result in JSON format matching the following interface:
+        5. Return ONLY a JSON object matching the following interface:
         
         {
           "carcinogens": [
@@ -7585,51 +7579,49 @@ app.post("/analyze", async (c) => {
           "recommendations": ["string"]
         }
       `;
-      let parts = [];
+      const requestBody = {
+        contents: [{
+          parts: [{ text: prompt }]
+        }]
+      };
       if (type === "image" && imageData) {
-        parts = [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: imageData.split(",")[1] || imageData
-            }
+        requestBody.contents[0].parts.push({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: imageData.split(",")[1] || imageData
           }
-        ];
-      } else {
-        parts = [{ text: prompt }];
+        });
       }
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${aiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${aiKey}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts }]
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody)
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Google API returned ${response.status}: ${errorText}`);
       }
-      const result = await response.json();
-      console.log(`Backend: AI Response received from ${modelName}`);
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        throw new Error("Empty response from Google AI");
+      }
+      console.log(`Backend: AI Response received from ${modelName} (v1)`);
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           const parsed = JSON.parse(jsonMatch[0]);
           return c.json(parsed);
         } catch (parseError) {
-          console.error(`Backend: JSON Parse Error with ${modelName}`, parseError);
+          console.error(`Backend: JSON Parse Error with ${modelName} (v1)`, parseError);
         }
       } else {
-        console.error(`Backend: No JSON found in AI response from ${modelName}`);
+        console.error(`Backend: No JSON found in AI response from ${modelName} (v1)`);
       }
     } catch (error) {
-      console.error(`Backend: Analysis failed with ${modelName}:`, error.message);
+      console.error(`Backend: Analysis failed with ${modelName} (v1):`, error.message);
       lastError = error;
-      if (error.message?.includes("API key not valid")) {
+      if (error.message?.includes("401") || error.message?.includes("INVALID_ARGUMENT")) {
         return c.json({ error: "api_key_invalid", details: error.message }, 401);
       }
       continue;
