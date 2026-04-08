@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createClient } from "@blinkdotnew/sdk";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const app = new Hono();
 
@@ -12,8 +11,6 @@ const getBlink = (c: any) =>
     projectId: c.env.BLINK_PROJECT_ID,
     secretKey: c.env.BLINK_SECRET_KEY,
   });
-
-const getGenAI = (c: any) => new GoogleGenerativeAI(c.env.GOOGLE_AI_API_KEY || "");
 
 app.get("/", (c) => c.text("CancerFind Backend API"));
 
@@ -26,18 +23,22 @@ app.post("/analyze", async (c) => {
   }
 
   const aiKey = c.env.GOOGLE_AI_API_KEY;
-  const genAI = new GoogleGenerativeAI(aiKey);
   
-  // Use gemini-1.5-flash with v1 API as requested
-  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro"];
+  // Try a comprehensive list of model names
+  const modelsToTry = [
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro",
+    "gemini-1.5-pro-latest",
+    "gemini-1.0-pro"
+  ];
   let lastError = null;
 
   for (const modelName of modelsToTry) {
     try {
-      console.log(`Backend: Attempting analysis with ${modelName} (API v1)`);
-      // Explicitly set apiVersion to 'v1' in model options
-      const model = genAI.getGenerativeModel({ model: modelName, apiVersion: 'v1' });
-
+      console.log(`Backend: Attempting analysis with ${modelName} via REST`);
+      
       let prompt = `
         You are CancerFind, a comprehensive AI carcinogen analyst. 
         Analyze the following product input (${type}): "${input}"
@@ -68,9 +69,9 @@ app.post("/analyze", async (c) => {
         }
       `;
 
-      let result;
+      let parts = [];
       if (type === 'image' && imageData) {
-        const parts = [
+        parts = [
           { text: prompt },
           {
             inlineData: {
@@ -79,36 +80,50 @@ app.post("/analyze", async (c) => {
             }
           }
         ];
-        result = await model.generateContent({ contents: [{ role: 'user', parts }] });
       } else {
-        result = await model.generateContent(prompt);
+        parts = [{ text: prompt }];
       }
 
-      const response = await result.response;
-      const text = response.text();
-      
-      console.log(`Backend: AI Response received from ${modelName} (API v1)`);
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${aiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts }]
+        })
+      });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      console.log(`Backend: AI Response received from ${modelName}`);
+
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           const parsed = JSON.parse(jsonMatch[0]);
           return c.json(parsed);
         } catch (parseError) {
-          console.error(`Backend: JSON Parse Error with ${modelName} (API v1)`, parseError);
+          console.error(`Backend: JSON Parse Error with ${modelName}`, parseError);
         }
       } else {
-        console.error(`Backend: No JSON found in AI response from ${modelName} (API v1)`);
+        console.error(`Backend: No JSON found in AI response from ${modelName}`);
       }
     } catch (error: any) {
-      console.error(`Backend: Analysis failed with ${modelName} (API v1):`, error.message);
+      console.error(`Backend: Analysis failed with ${modelName}:`, error.message);
       lastError = error;
       
       if (error.message?.includes("API key not valid")) {
         return c.json({ error: "api_key_invalid", details: error.message }, 401);
       }
       
-      // Continue to next model if this one failed
+      // Continue to next model for most errors
       continue;
     }
   }
