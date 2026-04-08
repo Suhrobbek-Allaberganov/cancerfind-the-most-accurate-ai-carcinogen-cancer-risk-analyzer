@@ -7544,7 +7544,7 @@ app.post("/analyze", async (c) => {
     return c.json({ error: "api_key_missing" }, 400);
   }
   const aiKey = c.env.GOOGLE_AI_API_KEY;
-  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro"];
+  const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro", "gemini-2.0-pro"];
   let lastError = null;
   console.log(`Backend: Starting direct fetch analysis for type ${type} in ${language}`);
   for (const modelName of modelsToTry) {
