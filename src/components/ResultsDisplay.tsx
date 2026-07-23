@@ -8,7 +8,7 @@ import { ScientificRiskReport } from '@/services/analyzer'
 interface ResultsDisplayProps {
   results: ScientificRiskReport;
   onNewAnalysis: () => void;
-  language?: Language;
+  language?: string;
 }
 
 const getRiskColor = (risk: string) => {

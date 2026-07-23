@@ -12,6 +12,13 @@ export interface ScientificRiskReport {
   overallRisk: 'Safe' | 'Caution' | 'High Risk';
   assessment: string;
   recommendations: string[];
+  inputType?: string;
+  regionalData?: {
+    location: string;
+    waterQuality: string[];
+    airQuality: string[];
+    soilQuality: string[];
+  };
 }
 
 export async function analyzeProduct(input: string, type: 'text' | 'barcode' | 'image', language: string, imageData?: string): Promise<ScientificRiskReport> {

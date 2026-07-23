@@ -424,6 +424,9 @@ export const translations: Record<Language, Record<string, string>> = {
 }
 
 // Get translation string
-export function t(key: string, language: Language): string {
-  return translations[language][key] || key
+export function t(key: string, language: string): string {
+  // Normalize: try exact match first, then base language, then fallback to 'en'
+  const lang = language as Language;
+  const base = (language?.split('-')[0] || 'en') as Language;
+  return translations[lang]?.[key] || translations[base]?.[key] || translations['en']?.[key] || key
 }
