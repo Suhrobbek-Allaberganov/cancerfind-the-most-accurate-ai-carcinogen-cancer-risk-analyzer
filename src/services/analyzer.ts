@@ -1,3 +1,26 @@
+export interface ScientificRiskReport {
+  carcinogens: {
+    name: string;
+    iarcGroup: '1' | '2A' | '2B' | '3';
+    linkedOncology: string[];
+    evaluationYear: number;
+    monographRef: string;
+    exposureRoutes: string[];
+    evidenceStrength: string;
+    safeLimits?: string;
+  }[];
+  overallRisk: 'Safe' | 'Caution' | 'High Risk';
+  assessment: string;
+  recommendations: string[];
+  inputType?: string;
+  regionalData?: {
+    location: string;
+    waterQuality: string[];
+    airQuality: string[];
+    soilQuality: string[];
+  };
+}
+
 export async function analyzeProduct(
   input: string,
   type: 'text' | 'barcode' | 'image',
@@ -85,4 +108,4 @@ Language: ${language}`;
     console.error("Analysis service error:", error);
     throw error;
   }
-    }
+}
