@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { blink } from './lib/blink'
 import HomePage from './pages/HomePage'
 import AnalyzerPage from './pages/AnalyzerPage'
 import { Toaster } from 'sonner'
@@ -28,11 +27,8 @@ function App() {
       ) : (
         <AnalyzerPage 
           onHome={goToHome} 
-          onResult={() => {}}
-          blink={blink}
           language={i18n.language as Language}
           onLanguageChange={handleLanguageChange}
-          onInputChange={() => {}}
         />
       )}
       <Toaster position="top-center" richColors />
