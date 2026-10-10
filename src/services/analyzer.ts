@@ -67,31 +67,28 @@ Type: ${type}
 Input: ${input}
 Language: ${language}`;
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: systemPrompt + "\n\n" + userPrompt }]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.2,
-            responseMimeType: "application/json"
+    try {
+    const response = await geminiFetch(apiKey, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: systemPrompt + "\n\n" + userPrompt }]
           }
-        }),
-      }
-    );
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: "application/json"
+        }
+      }),
+    });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error?.message || "Scientific analysis failed");
     }
 
@@ -107,6 +104,6 @@ Language: ${language}`;
 
   } catch (error: any) {
     console.error("Analysis service error:", error);
-    throw error;
+    throw new Error(friendlyGeminiError(error));
   }
 }
