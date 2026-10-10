@@ -1,3 +1,4 @@
+import { geminiFetch, friendlyGeminiError } from "./gemini-fetch";
 export interface ScientificRiskReport {
   carcinogens: {
     name: string;
