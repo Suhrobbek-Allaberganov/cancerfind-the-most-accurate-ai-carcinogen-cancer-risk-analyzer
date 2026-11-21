@@ -43,5 +43,5 @@ export function friendlyGeminiError(err: unknown): string {
   if (msg.includes("API_KEY") || msg.includes("403")) {
     return "Xizmat sozlamasida xatolik bor. Iltimos, keyinroq urinib ko'ring.";
   }
-  return "Tahlil vaqtincha ishlamadi. Iltimos, qayta urinib ko'ring.";
+    return `Tahlil vaqtincha ishlamadi. Sabab: ${msg.slice(0, 200)}`;
 }
