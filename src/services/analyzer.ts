@@ -1,4 +1,5 @@
 import { geminiFetch, friendlyGeminiError } from "./gemini-fetch";
+
 export interface ScientificRiskReport {
   carcinogens: {
     name: string;
@@ -28,7 +29,7 @@ export async function analyzeProduct(
   language: string,
   imageData?: string
 ): Promise<ScientificRiskReport> {
-  
+
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -67,7 +68,7 @@ Type: ${type}
 Input: ${input}
 Language: ${language}`;
 
-    try {
+  try {
     const response = await geminiFetch(apiKey, {
       method: "POST",
       headers: {
@@ -81,8 +82,10 @@ Language: ${language}`;
           }
         ],
         generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          thinkingConfig: {
+            thinkingLevel: "low"
+          }
         }
       }),
     });
