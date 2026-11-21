@@ -83,9 +83,6 @@ Language: ${language}`;
         ],
         generationConfig: {
           responseMimeType: "application/json",
-          thinkingConfig: {
-            thinkingLevel: "low"
-          }
         }
       }),
     });
